@@ -2,45 +2,110 @@ from dash import Dash, html, dcc
 import pandas as pd
 import plotly.graph_objects as go
 
-def load_forest_land_use_data():
-    """Loads forest land use change data."""
-    return pd.read_csv("static/data/LandUseChange_Forest_1990_2016.csv")
+def load_predator_data():
+    """Loads predator control data."""
+    return pd.read_csv("static/data/Predator_control.csv")
 
-def prepare_forest_land_use_chart_data(data_df):
-    """Prepares data for the forest land use pie chart."""
-    land_use_data = data_df.iloc[0, 3:]  # land use columns start from the 4th column
-    labels = land_use_data.index.tolist()
-    values = land_use_data.values.tolist()
-    return labels, values
+def prepare_predator_chart_data(data_df):
+    """Prepares data for the predator control chart."""
+    years = data_df['Year']
+    traps_caught = data_df['Number of Active Traps']
+    pests_caught = data_df['Pests Caught']
+    catch_rate = data_df['Catch Rate']
 
-def create_forest_land_use_pie_chart(labels, values):
-    """Creates a pie chart for forest land use data."""
-    return go.Figure(data=[go.Pie(labels=labels, values=values)])
+    return years, traps_caught, pests_caught, catch_rate
 
-def setup_dash_layout(app, fig_pie_chart):
-    """Sets up the layout of the Dash app."""
-    app.layout = html.Div(children=[
-        html.Div([
-            dcc.Graph(id='forest-land-use-pie-chart', figure=fig_pie_chart)
-        ]),
-        html.Div([  
-            html.H3(id='forest-land-use-pie-chart-description',children='Land uses converted from forestland since 1990.')
-        ])
-    ],id='forest-land-use-pie-chart-layout')
+def create_predator_control_chart(years, traps_caught, pests_caught, catch_rate):
+    """Creates a combined bar and line chart for predator control data."""
+    fig = go.Figure()
+
+    # Adding Number of Active Traps and Pests Caught as bars on the primary y-axis
+    fig.add_trace(go.Bar(
+        x=years,
+        y=traps_caught,
+        name='Number of Active Traps',
+        marker_color='#009E73' 
+    ))
+    fig.add_trace(go.Bar(
+        x=years,
+        y=pests_caught,
+        name='Pests Caught',
+        marker_color='#80CFB9'  
+    ))
+
+    # Adding Catch Rate as a line on the secondary y-axis
+    fig.add_trace(go.Scatter(
+        x=years,
+        y=catch_rate,
+        name='Catch Rate',
+        mode='lines+markers',
+        line=dict(color='#FFB44F'), 
+        yaxis='y2'
+    ))
+
+    # Updating the layout of the chart
+    fig.update_layout(
+        xaxis=dict(
+            title='Year',
+            tickfont_size=14,
+            showgrid=True,
+            gridcolor='#dee2e6'
+        ),
+    yaxis=dict(
+        title='Number of traps or pests caught (#)',
+        titlefont_size=16,
+        tickfont_size=14,
+        range=[0, 8000], 
+        dtick=1000,  
+        gridcolor='#dee2e6'
+    ),
+    yaxis2=dict(
+        title='Average catch rate (catches/trap/year)',
+        titlefont_size=16,
+        tickfont_size=14,
+        range=[0, 1.8],  
+        tickmode='linear', 
+        tick0=0,  
+        dtick=0.2,  
+        overlaying='y',
+        side='right'
+    ),
+        legend=dict(
+            x=0.5,
+            y=-0.15,
+            xanchor='center',
+            orientation='h',
+            bgcolor='rgba(255, 255, 255, 0)',
+            bordercolor='rgba(255, 255, 255, 0)'
+        ),
+        barmode='group',
+        bargap=0.15,
+        bargroupgap=0,
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+
+    # Adjusting bar width separately
+    for trace in fig.data:
+        if isinstance(trace, go.Bar):
+            trace.width = 0.4
+
+    return fig
 
 def create_app():
     """Creates and configures the Dash app."""
     app = Dash(__name__)
 
     # Load and prepare data
-    data_df = load_forest_land_use_data()
-    labels, values = prepare_forest_land_use_chart_data(data_df)
+    data_df_predator = load_predator_data()
+    years, traps, pests, catch_rate = prepare_predator_chart_data(data_df_predator)
 
-    # Create pie chart
-    fig_pie_chart = create_forest_land_use_pie_chart(labels, values)
+    fig = create_predator_control_chart(years, traps, pests, catch_rate)
 
-    # Setup layout
-    setup_dash_layout(app, fig_pie_chart)
+    app.layout = html.Div(children=[
+        html.Div([
+            dcc.Graph(id='predator-control-chart', figure=fig)
+        ])
+    ])
 
     return app
 
